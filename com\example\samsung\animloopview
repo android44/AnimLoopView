@@ -1,0 +1,551 @@
+package com.example.samsung.animloopview;
+
+import android.app.Activity;
+import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.Matrix;
+import android.graphics.Paint;
+import android.os.Handler;
+import android.os.Message;
+import android.util.AttributeSet;
+import android.util.Log;
+import android.view.MotionEvent;
+import android.view.View;
+import android.view.View;
+import android.view.ViewGroup;
+import android.view.WindowManager;
+
+import com.example.samsung.anim.AnimBitmap;
+import com.example.samsung.bean.BitmapBean;
+
+import java.lang.ref.SoftReference;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
+import static com.example.samsung.animloopview.LoopView.AnimState.ANIM_MOVE;
+import static com.example.samsung.animloopview.LoopView.AnimState.ANIM_RUN;
+import static com.example.samsung.animloopview.LoopView.AnimState.ANIM_STILL;
+
+/**
+ * Created by samsung on 2017/1/4.
+ */
+
+public class LoopView extends View implements View.OnClickListener{
+
+    private Map<Integer,BitmapBean> map = new ConcurrentHashMap<>();
+    private volatile int size = 0;
+    private volatile int current_id = 0;
+    private volatile int next_id = 1;
+    private int min_id = 0;
+    private volatile int max_id = 0;
+    private SoftReference<BitmapBean> soft;
+    private int width = 0;
+    private int height = 0;
+    private static int UNSPECIFIED_WIDTH = 480;
+    private static int UNSPECIFIED_HEIGHT = 300 ;
+    private Paint mBitPaint;
+    private AnimBitmap anim;
+    private AnimState state = AnimState.ANIM_STILL;
+    private volatile int type = 0 ;
+    private int total_size = 0;
+
+    public  enum AnimState{ANIM_RUN,ANIM_STILL,ANIM_MOVE};
+    private Context context;
+    private boolean wheel = false;
+    private float move_x = 0;
+    private float move_y = 0;
+    private float down_x = 0;
+    private float down_y = 0;
+    private static int MIN_MOVE = 8;
+    public int step_size = 0;
+    public int add_size = 10;
+    public int sub_size = -10;
+    private Bitmap moveBitmap;
+    public volatile int move_size = 0;
+    Object notify = new Object();
+    public volatile boolean run = false;
+    public LoopView.LoopViewInterface viewInterface;
+
+    android.os.Handler handler = new Handler(){
+        @Override
+        public void handleMessage(Message msg) {
+            super.handleMessage(msg);
+            handlerMsg(msg);
+        }
+    };
+
+    public LoopView(Context context) {
+        super(context);
+        initView(context);
+    }
+
+    public LoopView(Context context, AttributeSet attrs, int defStyleAttr) {
+        super(context, attrs, defStyleAttr);
+        initView(context);
+    }
+
+    public LoopView(Context context, AttributeSet attrs) {
+        super(context, attrs);
+        initView(context);
+    }
+
+    public void setAnimBitmap(AnimBitmap anim){
+        this.anim = anim;
+        this.anim.init(this,mBitPaint);
+        this.anim.setSize(width,height);
+    }
+
+    public void setLoopClick(LoopViewInterface click){
+        this.viewInterface = click;
+    }
+
+    public void setWheelLoop(boolean mwheel){
+        this.wheel = mwheel;
+    }
+
+    public int getSize(){
+        return size;
+    }
+
+    public void addBitmap(BitmapBean bitmap,boolean isResize){
+        map.put(size,bitmap);
+        size++;
+        max_id = size -1;
+
+    }
+
+    private void initRun(){
+        state = ANIM_STILL;
+        step_size = add_size;
+        if(type == 0) {
+            total_size = width;
+        } else{
+            total_size = height;
+        }
+        move_size = 0;
+    }
+
+    public void setBitmapList(Map<Integer,BitmapBean> listMap,int count){
+        this.map = listMap;
+        size = count;
+        max_id = size -1;
+        if(size > 1 && ANIM_STILL == state){
+           initRun();
+            handler.sendEmptyMessage(3);
+        }
+    }
+
+    public void handlerMsg(Message msg){
+        switch (msg.what){
+            case 3:
+                move_size+=step_size;
+                if(Math.abs(move_size) >= Math.abs(total_size) ){
+                    if(step_size <0){
+
+                        if(total_size <0){
+                            current_id = next_id;
+                        }
+
+                    } else {
+
+                        if(total_size > 0){
+                            current_id = next_id;
+                        }
+                    }
+                    state = ANIM_STILL;
+                    moveBitmap= anim.getBitmap(map.get(current_id));
+                    invalidate();
+                    startAutoAnim();
+                } else {
+                    state = ANIM_RUN;
+                    moveBitmap= anim.cmputerBitmap(move_size,map.get(current_id),map.get(next_id),type);
+                    Log.e("type",type+"");
+                    invalidate();
+                    handler.sendEmptyMessageDelayed(3,150);
+                }
+                break;
+        }
+    }
+
+    public void setLayoutSize(ViewGroup.LayoutParams params){
+        height  = params.height;
+        width = params.width;
+        this.setLayoutParams(params);
+    }
+
+    public void setLayoutSize(int width,int height){
+        if(width <= 0 || height <=0)
+            return;
+        ViewGroup.LayoutParams params = this.getLayoutParams();
+        if(params.width != width){
+            this.width = params.width = width;
+        }
+        if(params.height != height){
+            this.height = params.height = height;
+        }
+        this.setLayoutParams(params);
+    }
+
+    private void initView(Context context){
+        this.context = context;
+        this.width = UNSPECIFIED_WIDTH;
+        this.height = UNSPECIFIED_HEIGHT;
+        mBitPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        mBitPaint.setFilterBitmap(true);
+        mBitPaint.setDither(true);
+    }
+
+    @Override
+    public void onClick(View view) {
+        switch (state){
+            case ANIM_STILL:
+                    if(viewInterface != null){
+                        viewInterface.onIdClick(current_id);
+                    }
+                break;
+        }
+    }
+
+    @Override
+    protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+        super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+        measureSize(widthMeasureSpec,heightMeasureSpec);
+    }
+
+    @Override
+    protected void onDraw(Canvas canvas) {
+        super.onDraw(canvas);
+        switch (state){
+            case ANIM_STILL:
+                if(size == 0){
+                    return;
+                } else {
+                    if(moveBitmap != null){
+                        canvas.drawBitmap(moveBitmap,0,0,mBitPaint);
+                    } else {
+                        BitmapBean bean = map.get(current_id);
+                        SoftReference<Bitmap> sbt = bean.getBitmap();
+                        if(sbt != null){
+                            Bitmap bt = sbt.get();
+                            if(bt != null){
+                                canvas.drawBitmap(bt,0,0,mBitPaint);
+                            } else{
+                                bt = anim.decode(bean);
+                                canvas.drawBitmap(bt,0,0,mBitPaint);
+                            }
+                        } else{
+                            Bitmap bt = anim.decode(bean);
+                            canvas.drawBitmap(bt,0,0,mBitPaint);
+                        }
+                    }
+
+                }
+
+                break;
+            case ANIM_MOVE:
+                canvas.drawBitmap(moveBitmap,0,0,mBitPaint);
+                break;
+            case ANIM_RUN:
+               if(moveBitmap != null){
+                   canvas.drawBitmap(moveBitmap,0,0,mBitPaint);
+               }
+                break;
+            default:
+                break;
+        }
+
+    }
+
+    @Override
+    public boolean onTouchEvent(MotionEvent motionEvent) {
+        if(size == 0|| size ==1){
+            return false;
+        }
+        if(state ==AnimState.ANIM_RUN){
+            return false;
+        }
+        if(state == AnimState.ANIM_STILL){
+            handler.removeMessages(3);
+        }
+        int action = motionEvent.getAction();
+        switch (action){
+            case MotionEvent.ACTION_DOWN:
+                down_x = motionEvent.getX();
+                down_y = motionEvent.getY();
+                break;
+            case MotionEvent.ACTION_MOVE:
+                move_x = motionEvent.getX() - down_x;
+                move_y = motionEvent.getY() - down_y;
+                int mx = (int) Math.abs(move_x);
+                int my = (int) Math.abs(move_y);
+                if(mx <MIN_MOVE && my < MIN_MOVE){
+                    return  false;
+                }
+                if(state == ANIM_STILL){
+                    if(mx > my){
+                        type =  0;
+                    }
+                    if(my> mx){
+                        type =  1;
+                    }
+                    state = ANIM_MOVE;
+                }
+                Log.e("type",move_x+"-"+move_y+"-"+type);
+
+                if(type == 0){
+                    if(move_x > 0){
+                        if(current_id == max_id){
+                            if(!wheel){
+                                move_x = 0;
+                                move_y = 0;
+                                return false;
+                            }
+                        }
+                        next_id = current_id +1;
+                        if(next_id > max_id){
+                            if(!wheel){
+                                move_x = 0;
+                                move_y = 0;
+                                return false;
+                            }
+                            next_id = min_id;
+                        }
+                    }
+                    if(move_x <0){
+                        if(current_id == min_id){
+                            if(!wheel){
+                                move_x = 0;
+                                move_y = 0;
+                                return false;
+                            }
+                        }
+                        next_id = current_id -1;
+                        if(next_id < 0){
+                            if(!wheel){
+                                move_x = 0;
+                                move_y = 0;
+                                return false;
+                            }
+                            next_id = max_id;
+                        }
+
+                    }
+                }
+                if(type == 1){
+                    if(move_y > 0){
+                        if(current_id == max_id){
+                            if(!wheel){
+                                return false;
+                            }
+                        }
+                        next_id = current_id +1;
+                        if(next_id > max_id){
+                            if(!wheel){
+                                return false;
+                            }
+                            next_id = min_id;
+                        }
+                    }
+                    if(move_y <0){
+                        if(current_id == min_id){
+                            if(!wheel){
+                                return false;
+                            }
+                        }
+                        next_id = current_id -1;
+                        if(next_id < 0){
+                            if(!wheel){
+                                move_x = 0;
+                                move_y = 0;
+                                return false;
+                            }
+                            next_id = max_id;
+                        }
+                    }
+                }
+                computerBitmap(false);
+                break;
+            case MotionEvent.ACTION_UP:
+//                state = ANIM_STILL;
+                computerBitmap(true);
+                break;
+
+        }
+        return true;
+    }
+
+
+    public void startAutoAnim(){
+        if(current_id == max_id){
+            if(wheel){
+                next_id = min_id;
+            } else{
+                state = ANIM_STILL;
+                return;
+            }
+        }
+        next_id  = current_id +1;
+        if(next_id > max_id){
+            if(wheel){
+                next_id = min_id;
+            } else{
+                state = ANIM_STILL;
+                return;
+            }
+        }
+        initRun();
+        handler.sendEmptyMessageDelayed(3,8000);
+    }
+
+    private void computerBitmap(boolean up){
+        switch(type){
+            case 0:
+                if(up){
+                    if(Math.abs(move_x) >= width){
+                        current_id = next_id;
+                        moveBitmap = anim.getBitmap(map.get(current_id));
+                        invalidate();
+                        startAutoAnim();
+                        return;
+                    }
+                    if(Math.abs(move_x) < width/2){
+                        if(move_x > 0){
+                            step_size = sub_size;
+                        } else{
+                            step_size = add_size;
+                        }
+                        total_size = 0;
+                    } else if(Math.abs(move_x) >= width/2 && Math.abs(move_x) <width){
+                        if(move_x > 0){
+                            step_size = add_size;
+                            total_size = width;
+                        } else{
+                            step_size = sub_size;
+                            total_size = - width;
+                        }
+                    }
+                    move_size = (int) move_x;
+                    handler.sendEmptyMessage(3);
+                } else{
+                    if(Math.abs(move_x) > width){
+                        return;
+                    }
+                    if(Math.abs(move_x) == width){
+                        current_id = next_id;
+                        moveBitmap = anim.getBitmap(map.get(current_id));
+                    } else{
+                        moveBitmap = anim.getMoveWidthBitmap((int) move_x,map.get(current_id),map.get(next_id));
+                    }
+                    invalidate();
+                }
+
+                break;
+            case 1:
+                if(up){
+                    if(Math.abs(move_y) >= height){
+                        current_id = next_id;
+                        moveBitmap = anim.getBitmap(map.get(current_id));
+                        invalidate();
+                        startAutoAnim();
+                        return;
+                    }
+                    if(Math.abs(move_y) < height/2){
+                        if(move_y > 0){
+                            step_size = sub_size;
+                        } else{
+                            step_size = add_size;
+                        }
+                        total_size = 0;
+                    } else{
+                        if(move_y > 0){
+                            step_size = add_size;
+                            total_size = height;
+                        } else{
+                            step_size = sub_size;
+                            total_size = -height;
+                        }
+                    }
+                    move_size = (int) move_y;
+                    handler.sendEmptyMessage(3);
+                } else{
+                    if(Math.abs(move_y) > height){
+                        return;
+                    }
+                    if(Math.abs(move_y) == height){
+                        current_id = next_id;
+                        moveBitmap = anim.getBitmap(map.get(current_id));
+                    } else{
+                        moveBitmap = anim.getMoveHeightBitmap((int) move_y,map.get(current_id),map.get(next_id));
+                    }
+                    invalidate();
+                }
+
+                break;
+        }
+    }
+
+    public interface LoopViewInterface{
+        void onIdClick(int id);
+        void animRun();
+        void animStart();
+        void animFinish();
+    }
+
+
+
+    public void computerMoveId(int value){
+        if(value > 0){
+            next_id = current_id+1;
+            if(next_id > max_id){
+                if(wheel){
+                    next_id = min_id;
+                } else{
+                    next_id = current_id;
+                }
+            }
+
+        }
+        if(value <0){
+            next_id = current_id-1;
+            if(next_id < min_id){
+                if(wheel){
+                    next_id = max_id;
+                } else{
+                    next_id = min_id;
+                }
+            }
+
+        }
+    }
+
+
+
+    private void measureSize(int widthSpec,int heithSpec){
+        if(width != 0 && height != 0){
+            setMeasuredDimension(width,height);
+            return;
+        }
+        int specMode = MeasureSpec.getMode(widthSpec);
+        int specSize = MeasureSpec.getSize(widthSpec);
+        if (specMode == MeasureSpec.EXACTLY) {
+            width = specSize;
+        } else if (specMode == MeasureSpec.AT_MOST) {
+            width = UNSPECIFIED_WIDTH;
+        } else {
+            width = UNSPECIFIED_WIDTH;
+        }
+        int hspecMode = MeasureSpec.getMode(heithSpec);
+        int hspecSize = MeasureSpec.getSize(heithSpec);
+        if (hspecMode == MeasureSpec.EXACTLY) {
+            height = hspecSize;
+        } else if (hspecMode == MeasureSpec.AT_MOST) {
+            height =  UNSPECIFIED_HEIGHT;
+        } else {
+            height = UNSPECIFIED_HEIGHT;
+        }
+        setMeasuredDimension(width,height);
+    }
+
+}
