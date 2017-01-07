@@ -1,0 +1,113 @@
+package com.example.samsung.anim;
+
+import android.app.usage.UsageEvents;
+import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.Matrix;
+import android.graphics.Paint;
+import android.os.Handler;
+import android.os.Message;
+import android.util.Log;
+
+import com.example.samsung.animloopview.LoopView;
+import com.example.samsung.bean.BitmapBean;
+
+import java.lang.ref.SoftReference;
+
+/**
+ * Created by samsung on 2017/1/4.
+ */
+
+public abstract  class AnimBitmap {
+
+
+    public LoopView loopView;
+    Paint paint;
+    int width = 0;
+    int height = 0;
+
+    public AnimBitmap(){
+
+    }
+
+    public void init(LoopView view,Paint paint){
+        loopView = view;
+        this.paint = paint;
+    }
+
+    public void setSize(int width,int height){
+        this.width = width;
+        this.height = height;
+    }
+
+    public abstract Bitmap cmputerBitmap(int move_size,BitmapBean currentBitmap,BitmapBean nextBitmap, int type);
+
+    public abstract Bitmap decode(BitmapBean bean);
+
+
+    public  Bitmap getWidhtBitmap(BitmapBean bean,int x,int tox){
+        Bitmap bit = null;
+        SoftReference<Bitmap> soft = bean.getBitmap();
+        if(soft != null){
+            bit = soft.get();
+            if(bit == null){
+                bit = decode(bean);
+            }
+        } else{
+            bit =decode(bean);
+        }
+        Log.e("widht",x+tox+"-"+bit.getWidth());
+        bit= Bitmap.createBitmap(bit,x,0,tox,height,null,false);
+        return bit;
+    }
+
+    public abstract Bitmap getBitmap(BitmapBean bean);
+
+    public  Bitmap getHeightBitmap(BitmapBean bean,int y,int toy){
+        Bitmap bit = null;
+        SoftReference<Bitmap> soft = bean.getBitmap();
+        if(soft != null){
+            bit = soft.get();
+            if(bit == null){
+                bit = decode(bean);
+            }
+        } else {
+            bit = decode(bean);
+        }
+        bit = Bitmap.createBitmap(bit,0,y,width,toy,null,false);
+        return bit;
+    }
+
+   public  Bitmap getMoveWidthBitmap(int value,BitmapBean currentBitmap,BitmapBean nextBitmap){
+       return null;
+   }
+    public  Bitmap getMoveHeightBitmap(int value,BitmapBean currentBitmap,BitmapBean nextBitmap){
+        return null;
+    }
+
+    public abstract int getTotalSize();
+
+    public Bitmap resizeBitmap(Bitmap bitmap) {
+        if(bitmap == null){
+            return null;
+        }
+
+        float bw = bitmap.getWidth();
+        float bh = bitmap.getHeight();
+        float w = width;
+        float h= height;
+        if(bh == h && w == bw){
+            return bitmap;
+        }
+        float x = 0f;
+        float y = 0f;
+        x = w/bw;
+        y = h/bh;
+        Matrix matrix = new Matrix();
+        matrix.postScale(x,y);
+        Log.e("value",y+"-"+x);
+        bitmap = Bitmap.createBitmap(bitmap,0,0,bitmap.getWidth(),bitmap.getHeight(),matrix,true);
+        return bitmap;
+    }
+}
