@@ -1,0 +1,90 @@
+package com.example.samsung.anim;
+
+import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
+import android.util.Log;
+
+import com.example.samsung.animloopview.LoopView;
+import com.example.samsung.bean.BitmapBean;
+
+import java.lang.ref.SoftReference;
+
+/**
+ * Created by samsung on 2017/1/4.
+ */
+
+public class RightToLeftAnim extends AnimBitmap {
+
+    Bitmap one ;
+    Bitmap two;
+    Bitmap bit;
+    Canvas canv;
+
+    @Override
+    public Bitmap cmputerBitmap(int move_size, BitmapBean currentBitmap, BitmapBean nextBitmap, int type) {
+        if(type == 0){
+            return getMoveWidthBitmap(move_size,currentBitmap,nextBitmap);
+        }
+        if(type == 1){
+            return getMoveHeightBitmap(move_size,currentBitmap,nextBitmap);
+        }
+        return null;
+    }
+
+    @Override
+    public Bitmap decode(BitmapBean bean) {
+        return resizeBitmap(BitmapFactory.decodeResource(loopView.getContext().getResources(),bean.getSourceid()));
+    }
+
+    @Override
+    public Bitmap getBitmap(BitmapBean bean) {
+        return decode(bean);
+    }
+
+    @Override
+    public Bitmap getMoveWidthBitmap(int value,BitmapBean currentBitmap,BitmapBean nextBitmap) {
+        bit = Bitmap.createBitmap(width,height, Bitmap.Config.ARGB_8888);
+        canv = new Canvas(bit);
+        if(value < 0){
+            int a = Math.abs(value);
+            one = getWidhtBitmap(currentBitmap,0,width - a);
+            two = getWidhtBitmap(nextBitmap,0,a);
+            canv.drawBitmap(two,width - a,0,paint);
+            canv.drawBitmap(one,0,0,paint);
+        }
+        if(value > 0 ){
+            one = getWidhtBitmap(currentBitmap,value,width-value);
+            two = getWidhtBitmap(nextBitmap,0,value);
+            canv.drawBitmap(two,0,0,paint);
+            canv.drawBitmap(one,value,0,paint);
+        }
+        return bit;
+    }
+
+    @Override
+    public Bitmap getMoveHeightBitmap(int value, BitmapBean currentBitmap, BitmapBean nextBitmap) {
+        bit = Bitmap.createBitmap(width,height, Bitmap.Config.ARGB_8888);
+        canv = new Canvas(bit);
+        if(value < 0){
+            int a = Math.abs(value);
+            one = getHeightBitmap(currentBitmap,0,height-a);
+            two = getHeightBitmap(nextBitmap,0,a);
+            canv.drawBitmap(one,0,0,paint);
+            canv.drawBitmap(two,0,height-a,paint);
+        }
+        if(value >0){
+            one = getHeightBitmap(currentBitmap,value,height - value);
+            two = getHeightBitmap(nextBitmap,0,value);
+            canv.drawBitmap(one,0,value,paint);
+            canv.drawBitmap(two,0,0,paint);
+        }
+        return bit;
+    }
+
+    @Override
+    public int getTotalSize() {
+        return width;
+    }
+}
