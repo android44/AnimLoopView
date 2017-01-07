@@ -1,0 +1,39 @@
+package com.example.samsung.bean;
+
+import android.graphics.Bitmap;
+
+import java.lang.ref.SoftReference;
+
+/**
+ * Created by samsung on 2017/1/4.
+ */
+
+public class BitmapBean {
+    public SoftReference<Bitmap> bitmap;
+    public String path;
+    public int sourceid;
+
+    public SoftReference<Bitmap> getBitmap() {
+        return bitmap;
+    }
+
+    public String getPath() {
+        return path;
+    }
+
+    public void setBitmap(SoftReference<Bitmap> bitmap) {
+        this.bitmap = bitmap;
+    }
+
+    public void setPath(String path) {
+        this.path = path;
+    }
+
+    public int getSourceid() {
+        return sourceid;
+    }
+
+    public void setSourceid(int sourceid) {
+        this.sourceid = sourceid;
+    }
+}
