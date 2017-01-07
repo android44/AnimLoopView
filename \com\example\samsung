@@ -1,0 +1,44 @@
+package com.example.samsung.animloopview;
+
+import android.app.Activity;
+import android.support.v7.app.AppCompatActivity;
+import android.os.Bundle;
+import android.widget.RelativeLayout;
+
+import com.example.samsung.anim.RightToLeftAnim;
+import com.example.samsung.bean.BitmapBean;
+
+public class MainActivity extends Activity {
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+
+        setContentView(R.layout.activity_main);
+
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        int ids[] = {R.drawable.aaaaaaa,R.drawable.bbbbb,R.drawable.cccccc};
+        RelativeLayout root = (RelativeLayout)findViewById(R.id.activity_main);
+        LoopView loop = new LoopView(this);
+        root.addView(loop);
+        RightToLeftAnim anim = new RightToLeftAnim();
+        loop.setAnimBitmap(anim);
+        loop.setWheelLoop(true);
+        BitmapBean bean;
+        for(int id:ids){
+            bean = new BitmapBean();
+            bean.setSourceid(id);
+            loop.addBitmap(bean,true);
+        }
+        loop.startAutoAnim();
+    }
+
+    @Override
+    protected void onRestart() {
+        super.onRestart();
+    }
+}
